@@ -1,5 +1,4 @@
 'use strict';
-
     const piano = document.getElementsByClassName('set middle')[0];
     const keys = piano.getElementsByTagName('li');
     const melodies = ['first', 'second', 'third', 'fourth', 'fifth'];
