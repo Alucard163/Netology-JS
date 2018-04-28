@@ -1,17 +1,20 @@
 'use strict';
 
 function toggleMenu(event) {
-  if (this.classList.contains('show')) {
-    this.classList.remove('show');
-    this.classList.add('hide');
+  const curr=event.currentTarget;
+  if (curr.classList.contains('show')) {
+    curr.classList.remove('show');
+    curr.classList.add('hide');
   } else {
-    this.classList.add('show');
-    this.classList.remove('hide');
+    curr.classList.add('show');
+    curr.classList.remove('hide');
   }
 }
 
 function openLink(event) {
+  event.preventDefault();
   console.log(this.textContent);
+  event.stopPropagation();
 }
 
 function init(node) {
@@ -22,7 +25,7 @@ function initLink(node) {
   if (node.dataset.toggle) {
     return;
   }
-  node.addEventListener('click', openLink);
+  node.addEventListener('click', openLink,true);
 }
 
 Array
