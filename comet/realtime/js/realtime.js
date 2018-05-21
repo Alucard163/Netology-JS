@@ -1,5 +1,5 @@
-const ctx = document.getElementById('chart').getContext('2d');
-const realtime = new Chart(ctx).Bar({
+const chartContext = document.getElementById('chart').getContext('2d');
+const online = new Chart(chartContext).Bar({
   labels: [],
   datasets: [{
     fillColor: 'rgba(0,60,100,1)',
@@ -11,19 +11,17 @@ const realtime = new Chart(ctx).Bar({
   barValueSpacing: 2
 });
 
-let isFirst = true;
 const ws = new WebSocket('wss://neto-api.herokuapp.com/realtime');
-ws.addEventListener('message', event => {
-  if (isFirst) {
-    event.data
-      .split('\n')
-      .map(line => line.split('|'))
-      .forEach(data => realtime.addData([Number(data[1])], data[0]));
+let isFirst = true;
 
+ws.addEventListener('message', event => {
+  const dataModify = JSON.parse(event.data);
+
+  if (isFirst) {
+    dataModify.forEach(data => online.addData([Number(data.online)], data.time));
     isFirst = false;
   } else {
-    const [label, data] = event.data.split('|');
-    realtime.removeData();
-    realtime.addData([Number(data)], label);
+    online.removeData();
+    online.addData([Number(dataModify.online)], dataModify.time);
   }
 });
