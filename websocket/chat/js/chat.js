@@ -1,75 +1,97 @@
 'use strict';
 
+const ws = new WebSocket('wss://neto-api.herokuapp.com/chat');
+
 const chat = document.querySelector('.chat');
-const chatItem = init(chat);
-const host = new WebSocket('wss://neto-api.herokuapp.com/chat');
+const chatStatusElem = chat.querySelector('.chat-status');
+const msgSubmit = chat.querySelector('.message-submit');
+const msgContent = chat.querySelector('.messages-content');
 
-chatItem.content.setAttribute('style', 'overflow-y: auto;');
+const [MESSAGE_OTHER, MESSAGE_PERSONAL, MESSAGE_NOTICE, MESSAGE_LOADING] = ['other', 'personal', 'notice', 'loading'];
 
-host.addEventListener('open', () => {
-  initStatus('Пользователь появился в сети');
-  chatItem.status.textContent = chatItem.status.dataset.online;
-  chatItem.submit.disabled = false;
+ws.addEventListener('open', statusSuccess);
+ws.addEventListener('message', newMsg);
+ws.addEventListener('close', statusOffline);
+
+window.addEventListener('beforeunload', () => {
+  ws.close(1000, 'User left');
 });
+msgSubmit.addEventListener('click', sendMsg);
 
-host.addEventListener('close', () => {
-  initStatus('Пользователь не в сети');
-  chatItem.status.textContent = chatItem.status.dataset.offline;
-  chatItem.submit.disabled = true;
-});
+document.querySelector('.messages').style.overflowY = 'auto';
+msgContent.style.height = '100%';
 
-host.addEventListener('message', (event) => {
-  const data = event.data;
-  const typingMessage = chatItem.templates.loading;
-  const messageUser = chatItem.templates.messageUser.cloneNode(true);
+function statusSuccess() {
+  chatStatusElem.innerText = chatStatusElem.dataset.online;
+  addMsg('User online', MESSAGE_NOTICE);
+  msgSubmit.disabled = false;
+}
 
-  if (data === '...') {
-    chatItem.content.appendChild(typingMessage).scrollIntoView({block: "end", behavior: "smooth"});
-  } else {
-    msgSend(messageUser, data);
-    chatItem.content.removeChild(typingMessage);
-    chatItem.content.appendChild(messageUser).scrollIntoView({block: "end", behavior: "smooth"});
-  }
-});
+function statusOffline() {
+  chatStatusElem.innerText = chatStatusElem.dataset.offline;
+  addMsg('User offline', MESSAGE_NOTICE);
+  msgSubmit.disabled = true;
+}
 
-chatItem.form.addEventListener('submit', (event) => {
-  event.preventDefault();
+function newMsg(event) {
+  if (event.data !== '...' ) {
+    const loadingMessage = msgContent.querySelector('.message.loading');
 
-  const value = chatItem.input.value;
-  const messageMy = chatItem.templates.messageMy.cloneNode(true);
-
-  msgSend(messageMy,value);
-  chatItem.content.appendChild(messageMy).scrollIntoView({block: "end", behavior: "smooth"});
-  host.send(value);
-  chatItem.form.reset();
-});
-
-function init(chatElem) {
-  return {
-    form: chatElem.querySelector('.message-box'),
-    input: chatElem.querySelector('.message-input'),
-    submit: chatElem.querySelector('.message-submit'),
-    content:chatElem.querySelector('.messages-content'),
-    status: chatElem.querySelector('.chat-status'),
-    templates: {
-      messageUser: chatElem.querySelector('[class="message"]'),
-      messageMy: chatElem.querySelector('.message.message-personal'),
-      loading: chatElem.querySelector('.message.loading').cloneNode(true),
-      status: chatElem.querySelector('.message.message-status')
+    if (loadingMessage) {
+      loadingMessage.parentNode.removeChild(loadingMessage);
     }
-  };
+
+    addMsg(event.data, MESSAGE_OTHER);
+  } else {
+    addMsg(event.data, MESSAGE_LOADING);
+  }
 }
 
-function initStatus(messageStatus) {
-  const message = chatItem.templates.status.cloneNode(true);
-  message.querySelector('.message-text').textContent = messageStatus;
-  chatItem.content.appendChild(message);
+function sendMsg(event) {
+  event.preventDefault();
+  const messageInput = chat.querySelector('.message-input');
+  const message = messageInput.value;
+
+  if (message !== '') {
+    addMsg(message, MESSAGE_PERSONAL);
+    console.log(currTime());
+    ws.send(message);
+
+    messageInput.value = '';
+  }
 }
 
-function msgSend(who, data) {
-  const time = new Date();
-  const hour = time.getHours() < 10 ? `0${time.getHours()}` : time.getHours();
-  const minutes = time.getMinutes() < 10 ? `0${time.getMinutes()}` : time.getMinutes();
-  who.querySelector('.message-text').textContent = data;
-  who.querySelector('.timestamp').textContent = `${hour}:${minutes}`;
+function currTime() {
+  const now = new Date();
+  return now.toLocaleTimeString('ru-RU', { hour12: false }).substring(0, 5);
+}
+
+function addMsg(message = '', messageType = MESSAGE_SELF, time = currTime()) {
+  const msgTemplate = returnTemplate(messageType);
+
+    console.log(msgTemplate, messageType);
+    msgTemplate.querySelector('.message-text').innerText = message;
+
+    if (messageType !== MESSAGE_NOTICE) {
+      msgTemplate.querySelector('.timestamp').innerText = time;
+    }
+
+    msgContent.appendChild(msgTemplate);
+}
+
+function returnTemplate(messageType = MESSAGE_OTHER) {
+  const templates = chat.querySelector('.messages-templates');
+
+  switch (messageType) {
+    case MESSAGE_PERSONAL:
+      return templates.querySelector('.message.message-personal').cloneNode(true);
+    case MESSAGE_NOTICE:
+      return templates.querySelector('.message.message-status').cloneNode(true);
+    case MESSAGE_LOADING:
+      return templates.querySelector('.message.loading').cloneNode(true);
+    default:
+      return Array.from(templates.querySelectorAll('.message')).find(template => {
+        if (template.classList.length === 1) return template;
+      }).cloneNode(true);
+  }
 }
