@@ -1,60 +1,70 @@
 'use strict';
+
 const app = document.querySelector('.app');
 const list = document.querySelector('.list');
 const controls = document.querySelector('.app .controls');
-const stream = document.createElement('video');
+const videoOutput = document.createElement('video');
 
-initStream(); 
+useStream(); // начинаем работать с веб-камерой
 
-
-function initStream() {
-
+/**
+ * работает с медиапотоком с веб-камеры
+ */
+function useStream() {
+  // запрашиваем поток
   navigator.mediaDevices
     .getUserMedia({video: true, audio: false})
     .then((stream) => {
-      stream.autoplay = true;
-      app.insertBefore(stream, controls);
+      videoOutput.autoplay = true;
+      app.insertBefore(videoOutput, controls);
 
-      const btnPhoto = document.querySelector('#take-photo');
+      const takePhotoBtn = document.querySelector('#take-photo');
 
-      stream.src = URL.createObjectURL(stream); 
+      videoOutput.src = URL.createObjectURL(stream); // встраиваем поток в видеотег
 
-      stream.addEventListener('canplay', (evt) => {
+      // когда видеотег готов...
+      videoOutput.addEventListener('canplay', (evt) => {
 
         controls.classList.add('visible');
-        btnPhoto.addEventListener('click', (e) => {
-          playing();
+        takePhotoBtn.addEventListener('click', (e) => {
+          playSound();
           takePicture();
         });
       });
     })
     .catch((err) => {
-      const msgError = document.querySelector('#error-message');
-      msgError.innerText = `Ошибка: ${err.name}: ${err.message} \n ${err.stack}`;
-      msgError.classList.add('visible');
+      const errorOutput = document.querySelector('#error-message');
+      errorOutput.innerText = `Ошибка: ${err.name}: ${err.message} \n ${err.stack}`;
+      errorOutput.classList.add('visible');
     });
 }
 
-
+/**
+ * Делает снимок с камеры
+ */
 function takePicture() {
-  const canv = document.createElement('canvas');
-  const ctx = canv.getContext('2d');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
 
-  canv.width = stream.videoWidth;
-  canv.height = stream.videoHeight;
+  // проверяем его размеры
+  canvas.width = videoOutput.videoWidth;
+  canvas.height = videoOutput.videoHeight;
 
-  ctx.drawImage(stream, 0, 0);
+  // копируем текущий кадр видеотега в canvas
+  ctx.drawImage(videoOutput, 0, 0);
 
-  canv.toBlob(blob => newImg(blob, list));
+  // обновляем картинку на странице
+  canvas.toBlob(blob => createImage(blob, list));
 }
 
 /**
  * Вопспроизводит звук
  * @param soundUrl
  */
-function playing(soundUrl = './audio/click.mp3') {
+function playSound(soundUrl = './audio/click.mp3') {
   let player = document.querySelector('audio');
   if (!player) {
+    // если в DOM нет элемента audio, то создаем его и помещаем в конец элемента с классом app
     player = document.createElement('audio');
     document.querySelector('.app').appendChild(player);
   }
@@ -69,20 +79,20 @@ function playing(soundUrl = './audio/click.mp3') {
  * @param container
  * @param imgDataUrl
  */
-function newImg(blob, container) {
+function createImage(blob, container) {
 
   function disableButton(button) {
     button.parentNode.removeChild(button);
   }
 
-  const imgUrl = URL.createObjectURL(blob);
+  const imageUrl = URL.createObjectURL(blob);
 
   const imageContainerHTML =
     `
       <figure>
-        <img src="${imgUrl}">
+        <img src="${imageUrl}">
         <figcaption>
-          <a href="${imgUrl}" download="snapshot.png" target="_blank">
+          <a href="${imageUrl}" download="snapshot.png" target="_blank">
             <i class="material-icons">file_download</i>
           </a>
           <a><i class="material-icons">file_upload</i></a>
@@ -96,12 +106,12 @@ function newImg(blob, container) {
   const newImage = container.querySelector('figure:first-child');
   const downloadBtn = newImage.querySelector('a:nth-child(1)');
   downloadBtn.addEventListener('click', event => {
-    disableButton(event.target.parentNode); 
+    disableButton(event.target.parentNode); // убираем кнопку
   });
 
   const uploadBtn = newImage.querySelector('a:nth-child(2)');
   uploadBtn.addEventListener('click', event => {
-    disableButton(event.target.parentNode); 
+    disableButton(event.target.parentNode); // убираем кнопку
     const uploadImgRqst = new XMLHttpRequest();
 
     uploadImgRqst.addEventListener('loadend', (evnt) => {

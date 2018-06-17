@@ -60,4 +60,4 @@ function conversion(percent) {
  * @returns {string}
  */
 function getResult(percent) {
-  return `${Math.round(percent * 30)}px`; 
+  return `${Math.round(percent * 30)}px`; }
